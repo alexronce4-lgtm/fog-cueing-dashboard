@@ -187,6 +187,7 @@ export function useDemoEngine() {
   const runId = useRef(0);
   const runningRef = useRef(false);
   const episodeCount = useRef(0);
+  const replayCount = useRef(0);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -268,6 +269,7 @@ export function useDemoEngine() {
     demo.setGaitMode("idle");
     clearSignal();
     episodeCount.current = 0;
+    replayCount.current = 0;
     setCadence(0);
     if (src === "LIVE") switchSource(liveRef.current);
     else switchSource(demo);
@@ -281,6 +283,7 @@ export function useDemoEngine() {
       cancelSequence();
       clearSignal();
       episodeCount.current = 0;
+      replayCount.current = 0;
       setCadence(0);
       const demo = demoRef.current!;
       demo.reset(BASELINE);
@@ -460,7 +463,7 @@ export function useDemoEngine() {
     const event = ev;
 
     clearSignal();
-    episodeCount.current += 1;
+    replayCount.current += 1;
     dispatch({ type: "START", baseline: event.baseline_cadence_bpm });
     dispatch({ type: "REPLAY", patch: { loaded: event, playing: true, finished: false, loadError: false } });
     dispatch({ type: "RUNNING" });
@@ -518,7 +521,7 @@ export function useDemoEngine() {
           const recoveryMs = Math.round((recovery_t - cue_t) * 1000);
           const cur = stateRef.current;
           episode = {
-            episode_id: `R${String(episodeCount.current).padStart(2, "0")}`,
+            episode_id: `R${String(replayCount.current).padStart(2, "0")}`,
             timestamp_iso: new Date().toISOString(),
             edge: { classification: "freeze_like", confidence: cur.edge.confidence },
             runpod: rp ?? cur.runpod,
