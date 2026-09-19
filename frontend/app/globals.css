@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --phase: #3ee0ff;
+  --bg: #05070c;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: #d8f4ff;
+}
+
+body {
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, var(--phase) 18%, transparent), transparent 55%),
+    radial-gradient(900px 500px at -10% 110%, rgba(62, 224, 255, 0.08), transparent 50%),
+    linear-gradient(180deg, #05070c 0%, #070b12 100%);
+}
+
+/* Fine lab grid */
+.lab-grid {
+  background-image:
+    linear-gradient(rgba(62, 224, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(62, 224, 255, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.phase-walking { --phase: #3ee0ff; }
+.phase-freeze { --phase: #ffb020; }
+.phase-cue { --phase: #ff4d6d; }
+.phase-recover { --phase: #ff8a3d; }
+.phase-recovered { --phase: #b6ff4a; }
+.phase-analyze { --phase: #c084fc; }
+
+.panel {
+  @apply relative overflow-hidden rounded-2xl border border-white/10 bg-ink-800/80 backdrop-blur-md;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--phase) 55%, white), transparent);
+  opacity: 0.7;
+}
+
+.kicker {
+  @apply font-mono text-[11px] tracking-[0.28em] uppercase text-white/45;
+}
+
+.banner-scan {
+  background-image: repeating-linear-gradient(
+    -18deg,
+    color-mix(in srgb, var(--phase) 16%, transparent) 0 12px,
+    transparent 12px 28px
+  );
+  animation: scan-drift 8s linear infinite;
+}
+
+@keyframes scan-drift {
+  from { background-position: 0 0; }
+  to { background-position: 180px 80px; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.55); opacity: 0.7; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+.haptic-ring {
+  animation: pulse-ring var(--pulse-ms, 630ms) ease-out infinite;
+}
+
+.live-dot {
+  @apply inline-block h-2 w-2 rounded-full;
+  background: var(--phase);
+  box-shadow: 0 0 10px var(--phase);
+  animation: blink 1.4s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.loop-chip {
+  @apply rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] tracking-[0.18em] uppercase text-white/40;
+}
+
+.loop-chip.active {
+  border-color: color-mix(in srgb, var(--phase) 70%, white);
+  color: white;
+  background: color-mix(in srgb, var(--phase) 22%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--phase) 30%, transparent);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #1a2740; border-radius: 99px; }
+
+.modal-scrim {
+  background: rgba(5, 7, 12, 0.78);
+  backdrop-filter: blur(10px);
+}

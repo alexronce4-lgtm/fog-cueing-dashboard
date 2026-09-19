@@ -1,0 +1,54 @@
+"use client";
+
+import type { GrokAnalysis } from "@/types";
+
+export default function AnalysisModal({
+  analysis,
+  onClose,
+}: {
+  analysis: GrokAnalysis;
+  onClose: () => void;
+}) {
+  const sections = [
+    { title: "SESSION SUMMARY", body: analysis.session_summary },
+    { title: "CUE COMPARISON", body: analysis.cue_comparison },
+    { title: "OBSERVATIONS", body: analysis.observations },
+    { title: "NEXT EXPERIMENT", body: analysis.next_experiment },
+    { title: "SAFETY", body: analysis.safety },
+    { title: "LIMITATION", body: analysis.limitation },
+  ];
+
+  return (
+    <div className="modal-scrim fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="panel max-h-[86vh] w-full max-w-2xl overflow-y-auto p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="kicker">Grok · observational only</p>
+            <h3 className="font-display text-3xl font-semibold text-white">FULL ANALYSIS</h3>
+            <p className="mt-1 text-sm text-white/50">{analysis.summary}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-white/15 px-2 py-1 font-mono text-xs text-white/70"
+          >
+            CLOSE
+          </button>
+        </div>
+        <div className="space-y-5">
+          {sections.map((s) => (
+            <section key={s.title}>
+              <h4 className="font-display text-lg tracking-[0.14em] text-white">{s.title}</h4>
+              <pre className="mt-1 whitespace-pre-wrap font-sans text-sm leading-relaxed text-white/70">
+                {s.body || "—"}
+              </pre>
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
