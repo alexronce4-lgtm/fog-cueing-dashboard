@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --phase: #3ee0ff;
+  --phase-rgb: 62 224 255;
+  --bg: #06080d;
+}
+
+.phase-idle { --phase: #8fa3b8; --phase-rgb: 143 163 184; }
+.phase-walking { --phase: #3ee0ff; --phase-rgb: 62 224 255; }
+.phase-freeze { --phase: #ffb020; --phase-rgb: 255 176 32; }
+.phase-detected { --phase: #ff6a3d; --phase-rgb: 255 106 61; }
+.phase-cue { --phase: #ff4d6d; --phase-rgb: 255 77 109; }
+.phase-recover { --phase: #2dd4bf; --phase-rgb: 45 212 191; }
+.phase-recovered { --phase: #b6ff4a; --phase-rgb: 182 255 74; }
+.phase-analyze { --phase: #c084fc; --phase-rgb: 192 132 252; }
+.phase-outcome { --phase: #7dd3fc; --phase-rgb: 125 211 252; }
+
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: #e6f4fb;
+}
+
+.stage {
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 520px at 18% -10%, rgb(var(--phase-rgb) / 0.16), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgb(var(--phase-rgb) / 0.07), transparent 55%),
+    linear-gradient(180deg, #06080d 0%, #080b12 100%);
+  transition: background 700ms ease;
+}
+
+.stage::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 40%, transparent 85%);
+}
+
+.card {
+  @apply relative rounded-2xl border border-white/[0.08];
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 20px 60px -30px rgba(0, 0, 0, 0.9);
+}
+
+.card-accent {
+  border-color: rgb(var(--phase-rgb) / 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgb(var(--phase-rgb) / 0.08),
+    0 30px 80px -30px rgb(var(--phase-rgb) / 0.45);
+}
+
+.label {
+  @apply font-mono text-[11px] uppercase tracking-[0.26em] text-white/55;
+}
+
+.value-display {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.phase-text {
+  color: var(--phase);
+  text-shadow:
+    0 0 24px rgb(var(--phase-rgb) / 0.55),
+    0 0 80px rgb(var(--phase-rgb) / 0.25);
+  transition: color 300ms ease;
+}
+
+.phase-bg { background: var(--phase); }
+.phase-border { border-color: var(--phase); }
+
+/* Loop timeline */
+.loop-node {
+  @apply relative flex flex-col items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/35;
+}
+.loop-node .dot {
+  @apply h-[15px] w-[15px] rounded-full border border-white/25 bg-[#0c1118];
+  transition: all 250ms ease;
+}
+.loop-node.done .dot {
+  border-color: rgb(var(--phase-rgb) / 0.6);
+  background: rgb(var(--phase-rgb) / 0.35);
+}
+.loop-node.active { color: white; }
+.loop-node.active .dot {
+  background: var(--phase);
+  border-color: var(--phase);
+  box-shadow: 0 0 0 5px rgb(var(--phase-rgb) / 0.18), 0 0 20px var(--phase);
+}
+
+/* Live indicator */
+.live-dot {
+  @apply inline-block h-2 w-2 rounded-full;
+  background: var(--phase);
+  box-shadow: 0 0 10px var(--phase);
+  animation: blink 1.4s ease-in-out infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Haptic pulse rings */
+@keyframes ring {
+  0% { transform: scale(0.6); opacity: 0.85; }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+.ring {
+  border: 2px solid var(--phase);
+  animation: ring var(--pulse-ms, 630ms) cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+@keyframes core {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(1.12); }
+}
+.core-beat {
+  animation: core var(--pulse-ms, 630ms) ease-out infinite;
+}
+
+/* Gauge sweep */
+.gauge-arc {
+  transition: stroke-dashoffset 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Transport bar */
+.transport {
+  background: rgba(8, 11, 18, 0.82);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -30px 60px -30px rgba(0, 0, 0, 0.9);
+}
+.transport-btn {
+  @apply relative flex items-center gap-3 rounded-xl border border-white/10 px-3 py-3 text-left transition;
+  background: rgba(255, 255, 255, 0.03);
+}
+.transport-btn:hover:not(:disabled) {
+  border-color: rgb(var(--phase-rgb) / 0.55);
+  background: rgb(var(--phase-rgb) / 0.08);
+}
+.transport-btn.primary {
+  border-color: rgb(var(--phase-rgb) / 0.55);
+  background: rgb(var(--phase-rgb) / 0.12);
+}
+.transport-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.key {
+  @apply grid h-8 w-8 shrink-0 place-items-center rounded-md border border-white/15 font-mono text-xs text-white/70;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.modal-scrim {
+  background: rgba(4, 6, 10, 0.8);
+  backdrop-filter: blur(12px);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: rise 320ms ease-out both; }
+
+/* Recovery-detected emphasis */
+@keyframes pop {
+  0% { transform: scale(0.96); box-shadow: 0 0 0 0 rgb(var(--phase-rgb) / 0.0); }
+  30% { transform: scale(1.05); box-shadow: 0 0 0 6px rgb(var(--phase-rgb) / 0.25), 0 0 40px rgb(var(--phase-rgb) / 0.5); }
+  100% { transform: scale(1.02); box-shadow: 0 0 0 2px rgb(var(--phase-rgb) / 0.35), 0 0 30px rgb(var(--phase-rgb) / 0.35); }
+}
+.pop { animation: pop 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Segmented control */
+.seg {
+  @apply inline-flex items-center rounded-full border border-white/10 p-0.5;
+  background: rgba(0, 0, 0, 0.35);
+}
+.seg button {
+  @apply rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-white/50 transition;
+}
+.seg button.on {
+  color: #06080d;
+  background: var(--phase);
+  box-shadow: 0 0 14px rgb(var(--phase-rgb) / 0.5);
+}
+
+/* Gait figure */
+.figure-ring {
+  fill: none;
+  stroke: var(--phase);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ring var(--pulse-ms, 630ms) cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #1a2333; border-radius: 99px; }
