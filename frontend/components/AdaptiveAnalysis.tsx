@@ -37,7 +37,7 @@ export default function AdaptiveAnalysis({
           <Block label="Evidence" text={analysis.evidence} />
           <Block label="Next experiment" text={analysis.next_experiment} accent />
           <Block label="Confidence" text={analysis.confidence_statement} />
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2 pt-2">
             <button
               type="button"
               onClick={() => setOpen(true)}

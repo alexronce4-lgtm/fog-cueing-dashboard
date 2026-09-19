@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { GrokAnalysis } from "@/types";
 
 export default function AnalysisModal({
@@ -18,10 +20,18 @@ export default function AnalysisModal({
     { title: "LIMITATION", body: analysis.limitation },
   ];
 
-  return (
-    <div className="modal-scrim fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const node = (
+    <div className="modal-scrim fixed inset-0 z-[80] flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="panel max-h-[86vh] w-full max-w-2xl overflow-y-auto p-6"
+        className="panel max-h-[86vh] w-full max-w-3xl overflow-y-auto p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -51,4 +61,7 @@ export default function AnalysisModal({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(node, document.body);
 }
