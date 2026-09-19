@@ -5,39 +5,59 @@ import type { EventRecord } from "@/types";
 
 export default function RecentEvents({ events }: { events: EventRecord[] }) {
   const rows = [...events].reverse();
+  const newest = rows[0]?.episode_id;
+
   return (
-    <section className="panel p-5">
-      <p className="kicker">06 · Recent events</p>
-      <h3 className="mb-3 font-display text-2xl font-semibold tracking-wide text-white">
-        EPISODE LOG
-      </h3>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-sm">
+    <section className="card flex h-full flex-col p-5">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="label">07 · Recent events</p>
+          <h3 className="value-display text-2xl font-semibold text-white">EPISODE LOG</h3>
+        </div>
+        <span className="value-display text-2xl font-semibold text-white/60">
+          {events.length}
+          <span className="ml-1 font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">episodes</span>
+        </span>
+      </div>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left">
           <thead>
-            <tr className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
-              <th className="pb-2 pr-3 font-medium">Event</th>
-              <th className="pb-2 pr-3 font-medium">Time</th>
-              <th className="pb-2 pr-3 font-medium">Edge</th>
-              <th className="pb-2 pr-3 font-medium">RunPod</th>
-              <th className="pb-2 pr-3 font-medium">Cue BPM</th>
-              <th className="pb-2 pr-3 font-medium">Recovery</th>
-              <th className="pb-2 font-medium">Status</th>
+            <tr className="label">
+              <th className="pb-2 pr-3 font-normal">Event</th>
+              <th className="pb-2 pr-3 font-normal">Time</th>
+              <th className="pb-2 pr-3 font-normal">Edge</th>
+              <th className="pb-2 pr-3 font-normal">RunPod</th>
+              <th className="pb-2 pr-3 font-normal">Cue</th>
+              <th className="pb-2 pr-3 font-normal">Recovery</th>
+              <th className="pb-2 font-normal">Status</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((e) => (
-              <tr key={e.episode_id} className="border-t border-white/10 text-white/80">
-                <td className="py-2.5 pr-3 font-display text-lg text-white">{e.episode_id}</td>
-                <td className="py-2.5 pr-3 font-mono text-xs">{clock(e.timestamp_iso)}</td>
-                <td className="py-2.5 pr-3 font-mono">{pct(e.edge.confidence)}</td>
-                <td className="py-2.5 pr-3 font-mono">{pct(e.runpod.confidence)}</td>
-                <td className="py-2.5 pr-3 font-display text-lg">{e.cue.bpm}</td>
-                <td className="py-2.5 pr-3 font-mono">{seconds(e.recovery.time_ms)}</td>
-                <td className="py-2.5 font-mono text-xs uppercase tracking-[0.14em] text-signal-lime">
-                  {e.status}
-                </td>
-              </tr>
-            ))}
+            {rows.map((e) => {
+              const isNew = e.episode_id === newest && events.length > 3;
+              return (
+                <tr
+                  key={e.episode_id}
+                  className={`border-t border-white/[0.07] ${isNew ? "rise" : ""}`}
+                  style={isNew ? { background: "rgb(var(--phase-rgb) / 0.07)" } : undefined}
+                >
+                  <td className="value-display py-3 pr-3 text-xl font-semibold text-white">{e.episode_id}</td>
+                  <td className="py-3 pr-3 font-mono text-xs text-white/60">{clock(e.timestamp_iso)}</td>
+                  <td className="value-display py-3 pr-3 text-lg text-white">{pct(e.edge.confidence)}</td>
+                  <td className="value-display py-3 pr-3 text-lg text-white">{pct(e.runpod.confidence)}</td>
+                  <td className="value-display py-3 pr-3 text-lg text-white">
+                    {e.cue.bpm}
+                    <span className="ml-1 font-mono text-[10px] text-white/40">BPM</span>
+                  </td>
+                  <td className="value-display py-3 pr-3 text-lg text-white">{seconds(e.recovery.time_ms)}</td>
+                  <td className="py-3">
+                    <span className="rounded-full bg-signal-lime/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-signal-lime">
+                      {e.status}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

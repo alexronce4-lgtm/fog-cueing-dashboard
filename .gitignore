@@ -25,3 +25,6 @@ npm-debug.log*
 .idea/
 .vscode/
 *.swp
+
+# Next.js generated
+frontend/tsconfig.tsbuildinfo

@@ -31,13 +31,13 @@ export default function AnalysisModal({
   const node = (
     <div className="modal-scrim fixed inset-0 z-[80] flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="panel max-h-[86vh] w-full max-w-3xl overflow-y-auto p-6 shadow-2xl"
+        className="card card-accent rise max-h-[86vh] w-full max-w-3xl overflow-y-auto bg-[#0a0e16] p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <p className="kicker">Grok · observational only</p>
-            <h3 className="font-display text-3xl font-semibold text-white">FULL ANALYSIS</h3>
+            <p className="label">Grok · observational only</p>
+            <h3 className="value-display text-3xl font-semibold text-white">FULL ANALYSIS</h3>
             <p className="mt-1 text-sm text-white/50">{analysis.summary}</p>
           </div>
           <button
@@ -51,7 +51,7 @@ export default function AnalysisModal({
         <div className="space-y-5">
           {sections.map((s) => (
             <section key={s.title}>
-              <h4 className="font-display text-lg tracking-[0.14em] text-white">{s.title}</h4>
+              <h4 className="value-display text-lg tracking-[0.14em] text-white">{s.title}</h4>
               <pre className="mt-1 whitespace-pre-wrap font-sans text-sm leading-relaxed text-white/70">
                 {s.body || "—"}
               </pre>

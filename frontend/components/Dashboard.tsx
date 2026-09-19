@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, wsUrl } from "@/lib/api";
-import { PHASE_CLASS } from "@/lib/format";
+import { PHASE_CLASS, PHASE_COLOR } from "@/lib/format";
 import type {
+  Classification,
   ConnectionStatus,
   CueInfo,
   EventRecord,
   GrokAnalysis,
   IMUSample,
-  Classification,
   RecoveryInfo,
   RunPodResult,
   SessionState,
@@ -18,7 +18,7 @@ import type {
 import AdaptiveAnalysis from "./AdaptiveAnalysis";
 import ConnectionPills from "./ConnectionPills";
 import DemoControls from "./DemoControls";
-import DetectionPanel from "./DetectionPanel";
+import { EdgeTile, RunPodTile } from "./DetectionPanel";
 import GaitSignal from "./GaitSignal";
 import HapticIntervention from "./HapticIntervention";
 import RecentEvents from "./RecentEvents";
@@ -31,13 +31,8 @@ const EMPTY_STATE: StatePayload = {
   loop_step: "SENSE",
   loop: ["SENSE", "DETECT", "INTERVENE", "MEASURE RECOVERY", "ANALYZE", "ADAPT"],
 };
-
 const EMPTY_CUE: CueInfo = { pattern: "rhythmic", bpm: 95, active: false };
-const EMPTY_EDGE: Classification = {
-  classification: "walking",
-  confidence: 0.08,
-  source: "edge",
-};
+const EMPTY_EDGE: Classification = { classification: "walking", confidence: 0.08, source: "edge" };
 const EMPTY_RP: RunPodResult = {
   classification: "unknown",
   confidence: 0,
@@ -48,7 +43,6 @@ const EMPTY_REC: RecoveryInfo = { detected: false, elapsed_ms: 0, pre_cadence: 1
 
 export default function Dashboard() {
   const [state, setState] = useState<StatePayload>(EMPTY_STATE);
-  const [imu, setImu] = useState<IMUSample[]>([]);
   const [connections, setConnections] = useState<ConnectionStatus>({
     esp32: "DEMO",
     runpod: "MOCK",
@@ -61,10 +55,14 @@ export default function Dashboard() {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [analysis, setAnalysis] = useState<GrokAnalysis | null>(null);
   const [session, setSession] = useState<SessionState | null>(null);
+  const [cadence, setCadence] = useState(102);
   const [wsOk, setWsOk] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const buffer = useRef<IMUSample[]>([]);
+
+  // IMU samples live in a ref; the canvas reads them at 60 fps without re-rendering React.
+  const samplesRef = useRef<IMUSample[]>([]);
+  const lastCadenceAt = useRef(0);
 
   useEffect(() => {
     let closed = false;
@@ -86,56 +84,60 @@ export default function Dashboard() {
       };
       sock.onerror = () => setWsOk(false);
       sock.onmessage = (ev) => {
+        let msg: { type: string; data: unknown };
         try {
-          const msg = JSON.parse(ev.data) as { type: string; data: unknown };
-          switch (msg.type) {
-            case "imu": {
-              const sample = msg.data as IMUSample;
-              buffer.current = [...buffer.current.slice(-179), sample];
-              setImu(buffer.current);
-              break;
-            }
-            case "state":
-              setState(msg.data as StatePayload);
-              break;
-            case "status":
-              setConnections(msg.data as ConnectionStatus);
-              break;
-            case "cue":
-              setCue(msg.data as CueInfo);
-              break;
-            case "detection": {
-              const d = msg.data as { edge: Classification; runpod: RunPodResult };
-              if (d.edge) setEdge(d.edge);
-              if (d.runpod) setRunpod(d.runpod);
-              break;
-            }
-            case "recovery":
-              setRecovery(msg.data as RecoveryInfo);
-              break;
-            case "session": {
-              const s = msg.data as SessionState;
-              setSession(s);
-              setEvents(s.events || []);
-              if (s.cue) setCue(s.cue);
-              if (s.analysis) setAnalysis(s.analysis);
-              break;
-            }
-            case "analysis":
-              setAnalysis(msg.data as GrokAnalysis | null);
-              break;
-            case "event_logged":
-              setEvents((prev) => {
-                const next = msg.data as EventRecord;
-                if (prev.some((e) => e.episode_id === next.episode_id)) return prev;
-                return [...prev, next];
-              });
-              break;
-            default:
-              break;
-          }
+          msg = JSON.parse(ev.data);
         } catch {
-          /* ignore malformed frames */
+          return;
+        }
+        switch (msg.type) {
+          case "imu": {
+            const s = msg.data as IMUSample;
+            const buf = samplesRef.current;
+            buf.push(s);
+            if (buf.length > 400) buf.splice(0, buf.length - 400);
+            const now = performance.now();
+            if (s.cadence_bpm != null && now - lastCadenceAt.current > 250) {
+              lastCadenceAt.current = now;
+              setCadence(s.cadence_bpm);
+            }
+            break;
+          }
+          case "state":
+            setState(msg.data as StatePayload);
+            break;
+          case "status":
+            setConnections(msg.data as ConnectionStatus);
+            break;
+          case "cue":
+            setCue(msg.data as CueInfo);
+            break;
+          case "detection": {
+            const d = msg.data as { edge: Classification; runpod: RunPodResult };
+            if (d.edge) setEdge(d.edge);
+            if (d.runpod) setRunpod(d.runpod);
+            break;
+          }
+          case "recovery":
+            setRecovery(msg.data as RecoveryInfo);
+            break;
+          case "session": {
+            const s = msg.data as SessionState;
+            setSession(s);
+            setEvents(s.events || []);
+            if (s.cue) setCue(s.cue);
+            if (s.analysis) setAnalysis(s.analysis);
+            break;
+          }
+          case "analysis":
+            setAnalysis(msg.data as GrokAnalysis | null);
+            break;
+          case "event_logged":
+            setEvents((prev) => {
+              const next = msg.data as EventRecord;
+              return prev.some((e) => e.episode_id === next.episode_id) ? prev : [...prev, next];
+            });
+            break;
         }
       };
     };
@@ -143,25 +145,18 @@ export default function Dashboard() {
     connect();
     api
       .session()
-      .then((s) => {
-        const sess = s as SessionState;
-        setSession(sess);
-        setEvents(sess.events || []);
-        setCue(sess.cue);
-        setEdge(sess.edge);
-        setRunpod(sess.runpod);
-        setRecovery(sess.recovery);
-        if (sess.analysis) setAnalysis(sess.analysis);
-        setState({
-          phase: sess.phase,
-          label: sess.phase_label,
-          loop_step: EMPTY_STATE.loop_step,
-          loop: EMPTY_STATE.loop,
-        });
+      .then((raw) => {
+        const s = raw as SessionState;
+        setSession(s);
+        setEvents(s.events || []);
+        setCue(s.cue);
+        setEdge(s.edge);
+        setRunpod(s.runpod);
+        setRecovery(s.recovery);
+        if (s.analysis) setAnalysis(s.analysis);
+        setState({ ...EMPTY_STATE, phase: s.phase, label: s.phase_label });
       })
-      .catch(() => {
-        /* backend may still be booting */
-      });
+      .catch(() => {});
 
     return () => {
       closed = true;
@@ -170,12 +165,7 @@ export default function Dashboard() {
     };
   }, []);
 
-  const cadence = useMemo(() => {
-    const last = imu[imu.length - 1];
-    return last?.cadence_bpm ?? session?.current_cadence_bpm ?? 102;
-  }, [imu, session]);
-
-  async function run(label: string, fn: () => Promise<unknown>) {
+  const run = useCallback(async (label: string, fn: () => Promise<unknown>) => {
     setBusy(label);
     setError(null);
     try {
@@ -185,56 +175,57 @@ export default function Dashboard() {
     } finally {
       setBusy(null);
     }
-  }
+  }, []);
 
   const phaseClass = PHASE_CLASS[state.phase] || "phase-walking";
+  const color = PHASE_COLOR[state.phase] || PHASE_COLOR.WALKING;
 
   return (
-    <div className={`lab-grid min-h-screen ${phaseClass}`} data-phase={state.phase}>
-      <div className="mx-auto max-w-[1600px] px-4 pb-10 pt-4 sm:px-6">
-        <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="kicker">HackMIT 2026 · Wearable research prototype</p>
-            <h1 className="font-display text-3xl font-semibold tracking-wide text-white sm:text-4xl">
-              FoG CUEING LAB
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-white/55">
-              Experimental freeze-like gait cueing dashboard. Not a medical device.
-              Cloud models analyze after the fact — they do not drive the motor.
-            </p>
+    <div className={`stage ${phaseClass}`} data-phase={state.phase}>
+      <div className="relative z-10 mx-auto max-w-[1680px] px-4 pb-32 pt-4 sm:px-6">
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <div className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-black/30">
+              <span className="h-3 w-3 rounded-full phase-bg shadow-[0_0_16px_var(--phase)]" />
+            </div>
+            <div>
+              <h1 className="value-display text-2xl font-bold leading-none tracking-wide text-white">
+                FoG CUEING LAB
+              </h1>
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.26em] text-white/45">
+                HackMIT 2026 · Wearable research prototype · Not a medical device
+              </p>
+            </div>
           </div>
           <ConnectionPills connections={connections} wsOk={wsOk} />
         </header>
 
-        <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.18em] text-amber-200">
-          Research / assistive technology prototype — possible freeze-like events only.
-          Never a confirmed diagnosis, treatment, or validated FoG detector.
-        </div>
-
-        <StateBanner state={state} />
-
         {error && (
-          <div className="mt-3 rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          <div className="mb-3 rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
             {error}
           </div>
         )}
 
-        <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-12">
-          <div className="xl:col-span-8">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+          <div className="xl:col-span-5 2xl:col-span-4">
+            <StateBanner state={state} edge={edge} cue={cue} />
+          </div>
+          <div className="min-h-[340px] xl:col-span-7 2xl:col-span-8">
             <GaitSignal
-              samples={imu}
+              samplesRef={samplesRef}
               cadence={cadence}
               baseline={session?.baseline_cadence_bpm ?? 102}
               phase={state.phase}
+              color={color}
               sensor={connections.esp32}
             />
           </div>
-          <div className="xl:col-span-4">
-            <DemoControls busy={busy} run={run} />
-          </div>
 
-          <div className="xl:col-span-6">
-            <DetectionPanel edge={edge} runpod={runpod} />
+          <div className="md:col-span-1 xl:col-span-3">
+            <EdgeTile edge={edge} />
+          </div>
+          <div className="xl:col-span-3">
+            <RunPodTile runpod={runpod} />
           </div>
           <div className="xl:col-span-3">
             <HapticIntervention cue={cue} />
@@ -247,6 +238,7 @@ export default function Dashboard() {
             <AdaptiveAnalysis
               analysis={analysis}
               pending={session?.pending_next_cue}
+              analyzing={state.phase === "ANALYZING"}
               onArm={(bpm) => run("arm", () => api.armCue(bpm))}
             />
           </div>
@@ -254,7 +246,14 @@ export default function Dashboard() {
             <RecentEvents events={events} />
           </div>
         </div>
+
+        <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.22em] text-white/30">
+          Research / assistive-technology prototype. Signals describe possible freeze-like events only — never a
+          confirmed diagnosis, treatment, or validated FoG detector. Cloud models never command the motor.
+        </p>
       </div>
+
+      <DemoControls busy={busy} phase={state.phase} run={run} />
     </div>
   );
 }

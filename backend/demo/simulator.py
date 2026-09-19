@@ -23,6 +23,8 @@ class GaitSimulator:
         self.cadence_bpm = baseline_cadence_bpm
         self.mode: GaitMode = "walking"
         self._t0 = time.perf_counter()
+        self._last_t = 0.0
+        self._phase = 0.0  # accumulated step phase (rad) — avoids f*t phase jumps
         self._blend = 1.0  # 1 = walking, 0 = freeze-like
         self._noise = random.Random(2026)
 
@@ -35,10 +37,14 @@ class GaitSimulator:
         self.cadence_bpm = self.baseline_cadence_bpm
         self.mode = "walking"
         self._t0 = time.perf_counter()
+        self._last_t = 0.0
+        self._phase = 0.0
         self._blend = 1.0
 
     def sample(self) -> IMUSample:
         t = time.perf_counter() - self._t0
+        dt = max(0.0, min(0.2, t - self._last_t))
+        self._last_t = t
         target = 1.0 if self.mode == "walking" else 0.0
         if self.mode == "recovering":
             target = 1.0
@@ -46,29 +52,29 @@ class GaitSimulator:
         self._blend += (target - self._blend) * 0.12
 
         step_hz = max(0.4, self.cadence_bpm / 60.0)
+        self._phase += 2 * math.pi * step_hz * dt
+        ph = self._phase
         walk_amp = 2.35 * self._blend
         freeze_amp = 0.12 * (1.0 - self._blend)
         tremor = (1.0 - self._blend) * 0.55 * math.sin(2 * math.pi * 7.5 * t)
 
         n = lambda s: self._noise.gauss(0.0, s)
-        osc = walk_amp * math.sin(2 * math.pi * step_hz * t) + freeze_amp * math.sin(
-            2 * math.pi * 0.7 * t
-        )
-        ax = 0.18 * math.sin(2 * math.pi * step_hz * t + 0.4) * self._blend + n(0.04)
-        ay = -0.35 * math.cos(2 * math.pi * step_hz * t) * self._blend + n(0.05)
-        az = 9.73 + osc + tremor + n(0.06)
-        gx = (18.0 * self._blend) * math.sin(2 * math.pi * step_hz * t) + n(0.4)
-        gy = (9.0 * self._blend) * math.cos(2 * math.pi * step_hz * t) + n(0.3)
-        gz = n(0.25) + (1.0 - self._blend) * 2.2 * math.sin(2 * math.pi * 7.5 * t)
+        # Heel-strike asymmetry: a sharper positive lobe than the swing trough.
+        stride = math.sin(ph) + 0.28 * math.sin(2 * ph + 0.6)
+        osc = walk_amp * stride + freeze_amp * math.sin(2 * math.pi * 0.7 * t)
+        ax = 0.18 * math.sin(ph + 0.4) * self._blend + n(0.02)
+        ay = -0.35 * math.cos(ph) * self._blend + n(0.02)
+        az = 9.73 + osc + tremor + n(0.03)
+        gx = (18.0 * self._blend) * math.sin(ph) + n(0.3)
+        gy = (9.0 * self._blend) * math.cos(ph) + n(0.3)
+        gz = n(0.2) + (1.0 - self._blend) * 2.2 * math.sin(2 * math.pi * 7.5 * t)
 
         accel_mag = math.sqrt(ax * ax + ay * ay + az * az)
         gyro_mag = math.sqrt(gx * gx + gy * gy + gz * gz)
 
         # Instantaneous cadence estimate: walking cadence collapses in freeze-like mode.
-        self.cadence_bpm = (
-            self.baseline_cadence_bpm * (0.22 + 0.78 * self._blend)
-            + n(0.6) * self._blend
-        )
+        target_cadence = self.baseline_cadence_bpm * (0.22 + 0.78 * self._blend)
+        self.cadence_bpm += (target_cadence - self.cadence_bpm) * 0.2 + n(0.15) * self._blend
 
         return IMUSample(
             timestamp=round(t * 1000.0, 2),

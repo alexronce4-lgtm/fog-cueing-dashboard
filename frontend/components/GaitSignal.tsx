@@ -1,91 +1,74 @@
 "use client";
 
-import { Area, AreaChart, Line, ResponsiveContainer, YAxis } from "recharts";
+import type { MutableRefObject } from "react";
 import type { IMUSample, Phase } from "@/types";
+import Waveform from "./Waveform";
 
 export default function GaitSignal({
-  samples,
+  samplesRef,
   cadence,
   baseline,
   phase,
+  color,
   sensor,
 }: {
-  samples: IMUSample[];
+  samplesRef: MutableRefObject<IMUSample[]>;
   cadence: number;
   baseline: number;
   phase: Phase;
+  color: string;
   sensor: string;
 }) {
-  const freeze = phase === "POSSIBLE_FREEZE" || phase === "CUE_TRIGGERED";
-  const data = samples.map((s, i) => ({
-    i,
-    mag: s.accel_mag,
-    gyro: 9.4 + (s.gyro_mag || 0) / 40,
-  }));
+  const freeze = phase === "POSSIBLE_FREEZE" || phase === "CUE_TRIGGERED" || phase === "RECOVERY_MONITORING";
+  const drop = Math.max(0, Math.round(100 - (cadence / baseline) * 100));
 
   return (
-    <section className="panel h-full p-5">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+    <section className="card flex h-full flex-col overflow-hidden">
+      <div className="flex flex-wrap items-start justify-between gap-4 px-5 pt-4">
         <div>
-          <p className="kicker">01 · Live gait signal</p>
-          <h3 className="font-display text-2xl font-semibold tracking-wide text-white">IMU WAVEFORM</h3>
+          <p className="label">01 · Live gait signal</p>
+          <h3 className="value-display text-2xl font-semibold text-white">
+            IMU · ACCEL MAGNITUDE
+          </h3>
         </div>
-        <div className="flex gap-6 font-mono text-xs uppercase tracking-[0.16em] text-white/50">
-          <div>
-            Cadence{" "}
-            <span className="text-lg text-white">{cadence.toFixed(0)}</span>
-            <span className="text-white/40"> BPM</span>
-          </div>
-          <div>
-            Baseline{" "}
-            <span className="text-lg text-white">{baseline.toFixed(0)}</span>
-            <span className="text-white/40"> BPM</span>
-          </div>
-          <div>
-            Sensor <span className="text-lg text-white">{sensor}</span>
-          </div>
+        <div className="flex gap-6">
+          <Readout label="Cadence" value={cadence.toFixed(0)} unit="BPM" hot={freeze} />
+          <Readout label="Baseline" value={baseline.toFixed(0)} unit="BPM" />
+          <Readout label="Sensor" value={sensor} />
         </div>
       </div>
-      <div className="h-[220px] w-full">
-        {data.length < 4 ? (
-          <div className="flex h-full items-center justify-center font-mono text-xs tracking-[0.2em] text-white/35">
-            AWAITING IMU STREAM…
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="magFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--phase)" stopOpacity={0.45} />
-                  <stop offset="100%" stopColor="var(--phase)" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <YAxis domain={[7.6, 13.2]} hide />
-              <Area
-                type="monotone"
-                dataKey="mag"
-                stroke="var(--phase)"
-                fill="url(#magFill)"
-                strokeWidth={2.2}
-                isAnimationActive={false}
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="gyro"
-                stroke="rgba(255,255,255,0.28)"
-                strokeWidth={1}
-                isAnimationActive={false}
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-      <div className="mt-2 flex justify-between font-mono text-[10px] tracking-[0.2em] text-white/35">
-        <span>ACCEL MAGNITUDE {freeze ? "· FREEZE-LIKE PATTERN" : "· LOCOMOTION"}</span>
-        <span>GYRO (DIM) · ~25 Hz</span>
+      <div className="relative mt-2 min-h-[220px] flex-1">
+        <Waveform samplesRef={samplesRef} color={color} />
+        <div className="pointer-events-none absolute left-5 top-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-white/50">
+          <span className="live-dot" />
+          {freeze ? `Freeze-like pattern · cadence −${drop}%` : "Locomotion · rhythmic stepping"}
+        </div>
+        <div className="pointer-events-none absolute bottom-3 right-5 font-mono text-[10px] uppercase tracking-[0.22em] text-white/35">
+          ~25 Hz · 1 g reference dashed
+        </div>
       </div>
     </section>
+  );
+}
+
+function Readout({
+  label,
+  value,
+  unit,
+  hot,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  hot?: boolean;
+}) {
+  return (
+    <div className="text-right">
+      <p className="label">{label}</p>
+      <p className={`value-display text-3xl font-semibold leading-none ${hot ? "phase-text" : "text-white"}`}>
+        {value}
+        {unit && <span className="ml-1 text-sm text-white/40">{unit}</span>}
+      </p>
+    </div>
   );
 }
