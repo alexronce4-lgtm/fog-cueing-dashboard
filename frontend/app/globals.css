@@ -37,7 +37,7 @@ body {
 .phase-analyze { --phase: #c084fc; }
 
 .panel {
-  @apply relative overflow-hidden rounded-2xl border border-white/10 bg-ink-800/80 backdrop-blur-md;
+  @apply relative rounded-2xl border border-white/10 bg-ink-800/80 backdrop-blur-md;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
