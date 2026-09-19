@@ -1,7 +1,7 @@
 "use client";
 
 import type { MutableRefObject } from "react";
-import type { IMUSample, Phase } from "@/types";
+import type { IMUSample, Phase, SensorMode } from "@/types";
 import Waveform from "./Waveform";
 
 export default function GaitSignal({
@@ -17,22 +17,21 @@ export default function GaitSignal({
   baseline: number;
   phase: Phase;
   color: string;
-  sensor: string;
+  sensor: SensorMode;
 }) {
-  const freeze = phase === "POSSIBLE_FREEZE" || phase === "CUE_TRIGGERED" || phase === "RECOVERY_MONITORING";
-  const drop = Math.max(0, Math.round(100 - (cadence / baseline) * 100));
+  const freeze = phase === "POSSIBLE_FREEZE" || phase === "DETECTED" || phase === "CUE_TRIGGERED" || phase === "RECOVERY_MONITORING";
+  const status =
+    phase === "IDLE" ? "Standby" : freeze ? "Freeze-like pattern" : "Rhythmic stepping";
 
   return (
     <section className="card flex h-full flex-col overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 pt-4">
         <div>
-          <p className="label">01 · Live gait signal</p>
-          <h3 className="value-display text-2xl font-semibold text-white">
-            IMU · ACCEL MAGNITUDE
-          </h3>
+          <p className="label">Live gait signal</p>
+          <h3 className="value-display text-2xl font-semibold text-white">ACCELERATION MAGNITUDE</h3>
         </div>
         <div className="flex gap-6">
-          <Readout label="Cadence" value={cadence.toFixed(0)} unit="BPM" hot={freeze} />
+          <Readout label="Cadence" value={cadence > 1 ? cadence.toFixed(0) : "—"} unit="BPM" hot={freeze} />
           <Readout label="Baseline" value={baseline.toFixed(0)} unit="BPM" />
           <Readout label="Sensor" value={sensor} />
         </div>
@@ -41,27 +40,14 @@ export default function GaitSignal({
         <Waveform samplesRef={samplesRef} color={color} />
         <div className="pointer-events-none absolute left-5 top-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-white/50">
           <span className="live-dot" />
-          {freeze ? `Freeze-like pattern · cadence −${drop}%` : "Locomotion · rhythmic stepping"}
-        </div>
-        <div className="pointer-events-none absolute bottom-3 right-5 font-mono text-[10px] uppercase tracking-[0.22em] text-white/35">
-          ~25 Hz · 1 g reference dashed
+          {status}
         </div>
       </div>
     </section>
   );
 }
 
-function Readout({
-  label,
-  value,
-  unit,
-  hot,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  hot?: boolean;
-}) {
+function Readout({ label, value, unit, hot }: { label: string; value: string; unit?: string; hot?: boolean }) {
   return (
     <div className="text-right">
       <p className="label">{label}</p>

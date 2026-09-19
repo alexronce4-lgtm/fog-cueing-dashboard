@@ -8,10 +8,12 @@
   --bg: #06080d;
 }
 
+.phase-idle { --phase: #8fa3b8; --phase-rgb: 143 163 184; }
 .phase-walking { --phase: #3ee0ff; --phase-rgb: 62 224 255; }
 .phase-freeze { --phase: #ffb020; --phase-rgb: 255 176 32; }
+.phase-detected { --phase: #ff6a3d; --phase-rgb: 255 106 61; }
 .phase-cue { --phase: #ff4d6d; --phase-rgb: 255 77 109; }
-.phase-recover { --phase: #ff8a3d; --phase-rgb: 255 138 61; }
+.phase-recover { --phase: #2dd4bf; --phase-rgb: 45 212 191; }
 .phase-recovered { --phase: #b6ff4a; --phase-rgb: 182 255 74; }
 .phase-analyze { --phase: #c084fc; --phase-rgb: 192 132 252; }
 

@@ -1,6 +1,8 @@
 export type Phase =
+  | "IDLE"
   | "WALKING"
   | "POSSIBLE_FREEZE"
+  | "DETECTED"
   | "CUE_TRIGGERED"
   | "RECOVERY_MONITORING"
   | "RECOVERED"
@@ -21,14 +23,10 @@ export interface IMUSample {
   cadence_bpm?: number | null;
 }
 
-export interface Classification {
+export interface EdgeScore {
   classification: ClassificationLabel;
   confidence: number;
-  source?: string;
-  latency_ms?: number | null;
-  model_version?: string | null;
-  note?: string;
-  status?: string;
+  latency_ms: number;
 }
 
 export interface RunPodResult {
@@ -36,30 +34,26 @@ export interface RunPodResult {
   confidence: number;
   model_version: string;
   status: "idle" | "pending" | "complete" | "mock" | "error";
-  note?: string;
 }
 
 export interface CueInfo {
-  pattern: string;
+  pattern: "rhythmic" | "pulse" | "off";
   bpm: number;
   active: boolean;
-  source?: string;
-  note?: string;
+  source: "edge_local" | "operator";
 }
 
 export interface CueParams {
   pattern: "rhythmic" | "pulse" | "off";
   bpm: number;
-  active?: boolean;
 }
 
 export interface RecoveryInfo {
   detected: boolean;
-  time_ms?: number | null;
   elapsed_ms: number;
-  pre_cadence?: number | null;
-  post_cadence?: number | null;
-  event_duration_ms?: number | null;
+  time_ms: number | null;
+  pre_cadence: number;
+  post_cadence: number | null;
 }
 
 export interface EventRecord {
@@ -68,11 +62,11 @@ export interface EventRecord {
   edge: { classification: ClassificationLabel; confidence: number };
   runpod: RunPodResult;
   cue: CueInfo;
-  recovery: { detected: boolean; time_ms?: number | null };
+  recovery: { detected: boolean; time_ms: number | null };
   status: string;
-  event_duration_ms?: number | null;
-  pre_cadence?: number | null;
-  post_cadence?: number | null;
+  event_duration_ms: number | null;
+  pre_cadence: number | null;
+  post_cadence: number | null;
 }
 
 export interface GrokAnalysis {
@@ -91,32 +85,29 @@ export interface GrokAnalysis {
   mock: boolean;
 }
 
-export interface SessionState {
-  session_id: string;
-  baseline_cadence_bpm: number;
-  current_cadence_bpm: number;
-  allowed_next_cues: CueParams[];
-  events: EventRecord[];
+export type ServiceMode = "MOCK" | "ONLINE";
+export type SensorMode = "DEMO" | "LIVE";
+
+export interface Connections {
+  stream: "SIMULATED" | "LIVE";
+  esp32: SensorMode;
+  runpod: ServiceMode;
+  grok: ServiceMode;
+}
+
+export interface DemoState {
   phase: Phase;
-  phase_label: string;
+  running: boolean;
+  storyStep: number;
+  baseline_cadence_bpm: number;
+  allowed_next_cues: CueParams[];
+  edge: EdgeScore;
+  runpod: RunPodResult;
   cue: CueInfo;
   recovery: RecoveryInfo;
-  edge: Classification;
-  runpod: RunPodResult;
-  analysis?: GrokAnalysis | null;
-  pending_next_cue?: CueParams | null;
-  disclaimer: string;
-}
-
-export interface ConnectionStatus {
-  esp32: "CONNECTED" | "DEMO";
-  runpod: "ONLINE" | "MOCK" | "ERROR";
-  grok: "ONLINE" | "MOCK" | "ERROR";
-}
-
-export interface StatePayload {
-  phase: Phase;
-  label: string;
-  loop_step: string;
-  loop: string[];
+  analysis: GrokAnalysis | null;
+  events: EventRecord[];
+  lastEpisodeId: string | null;
+  connections: Connections;
+  backendReachable: boolean;
 }

@@ -9,7 +9,7 @@ This is a **research / assistive-technology prototype**, not a validated medical
 Core loop: **SENSE → DETECT → INTERVENE → MEASURE RECOVERY → ANALYZE → ADAPT**
 
 ```
-WALKING → POSSIBLE FREEZE → CUEING → RECOVERING → RECOVERED → ANALYZING → WALKING
+WALKING → POSSIBLE FREEZE → DETECTED → CUEING → RECOVERING → RECOVERED → ANALYZING → WALKING
 ```
 
 ## Quick start
@@ -60,24 +60,42 @@ pytest -q
 
 ## Demo mode (judges)
 
-Use the **DEMO CONTROLS** panel on the right:
+Demo mode is **self-contained in the browser**: the gait simulator, the automatic
+freeze → cue → recovery sequence, and the mock RunPod / Grok services all run
+client-side. The dashboard works with the backend offline and never shows an
+error banner — pills read `STREAM SIMULATED · ESP32 DEMO · RUNPOD MOCK · GROK MOCK`.
 
-| Control | What you should see |
+Three controls (keys **1 · 2 · 3**) in the docked bar:
+
+| Control | What happens |
 |---|---|
-| **START WALKING** | Cyan **WALKING** banner, locomotion IMU, cue inactive |
-| **SIMULATE FREEZE-LIKE EVENT** | Waveform collapses → **POSSIBLE FREEZE** → edge confidence climbs → RunPod secondary score → **CUEING** pulses at the armed BPM → **RECOVERING** timer |
-| **TRIGGER CUE** | Forces a local/edge cue (cloud is not in this path) |
-| **SIMULATE RECOVERY** | Waveform normalizes, timer stops, **RECOVERED**, episode appended, Grok card fills (**NEXT EXPERIMENT**), then back to walking |
-| **RUN ANALYSIS** | Recomputes the evidence-first Grok card from the episode log |
-| **RESET SESSION** | Restores seeded E1 / E2 / E3 and walking |
+| **1 · START DEMO** | Clears the session, enters **WALKING**, starts the simulated IMU at ~102 BPM, edge low, RunPod idle, cue inactive, timer 0 |
+| **2 · TRIGGER FREEZE-LIKE EVENT** | Runs the whole loop automatically (see timeline below). Disabled while a sequence is running. Works from READY too. |
+| **3 · RESET** | Cancels all timers, clears waveform / events / analysis, returns to **READY** |
 
-Seeded episodes (research scores, not clinical labels):
+Automatic timeline after **TRIGGER**:
 
-- **E1** — edge 84% / RunPod 91% · 95 BPM · 1.42s · Recovered
-- **E2** — 77% / 86% · 80 BPM · 2.63s · Recovered
-- **E3** — 81% / 89% · 95 BPM · 1.57s · Recovered
+| t | State | On screen |
+|---|---|---|
+| 0 ms | **POSSIBLE FREEZE** | Waveform collapses to a freeze-like trace; edge score ramps to ~82–88% |
+| 500 ms | **DETECTED** | RunPod verification requested (time-boxed, mock fallback) |
+| 1000 ms | **CUEING** | RunPod ~88–94%; haptic cue **ACTIVE**, 95 BPM pulse rings |
+| 2000 ms | **RECOVERING** | Recovery timer running |
+| 3.4–3.8 s | **RECOVERED** | Waveform returns to baseline; timer stops at 1.4–1.8 s; episode E*n* added |
+| +250 ms | **ANALYZING** | Verification result stays visible; Grok analysis (time-boxed, mock fallback) |
+| +1.25 s | **WALKING** | **ADAPTIVE RESULT** shows Observed / Evidence / Next experiment / Confidence |
 
-With n this small, analysis **must not** declare a cue effective. The mock (and the live Grok prompt) asks for more observations and will only recommend a next tempo from `allowed_next_cues` (80 / 95 / 102 BPM). Arming that tempo is a **local** operator action.
+The cue is dispatched from the **edge** score. RunPod verifies alongside and Grok
+analyses afterwards; neither can pulse the motor. With a handful of episodes the
+analysis will not rank cues — it asks for more observations and only proposes a
+next tempo from `allowed_next_cues` (80 / 95 / 102 BPM). Arming it is a local
+operator click.
+
+Secondary detail (raw phase, latency, model version, backend reachability,
+allowed cues) lives in the collapsible **Advanced** panel.
+
+When the backend is reachable, episodes are mirrored to `POST /api/event`
+(fire-and-forget) so `GET /api/events` stays in sync.
 
 ## Configure Grok (optional)
 
@@ -155,8 +173,11 @@ backend/          FastAPI, WebSockets, Pydantic
   services/runpod_service.py
   services/grok_service.py
   demo/simulator.py
-frontend/         Next.js + TypeScript + Tailwind + Recharts
-  app/  components/  lib/  types/
+frontend/         Next.js + TypeScript + Tailwind (canvas waveform)
+  app/  components/  types/
+  lib/demoEngine.ts   client-side state machine + automatic demo sequence
+  lib/gaitSim.ts      client-side IMU simulator (mirrors backend/demo/simulator.py)
+  lib/services.ts     RunPod / Grok abstractions, time-boxed with mock fallbacks
 ```
 
 CORS allows `FRONTEND_ORIGIN` (default `http://localhost:3000`).

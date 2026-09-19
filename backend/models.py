@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 class Phase(str, Enum):
     WALKING = "WALKING"
     POSSIBLE_FREEZE = "POSSIBLE_FREEZE"
+    DETECTED = "DETECTED"
     CUE_TRIGGERED = "CUE_TRIGGERED"
     RECOVERY_MONITORING = "RECOVERY_MONITORING"
     RECOVERED = "RECOVERED"
@@ -25,6 +26,7 @@ class Phase(str, Enum):
 PHASE_LABELS: dict[Phase, str] = {
     Phase.WALKING: "WALKING",
     Phase.POSSIBLE_FREEZE: "POSSIBLE FREEZE",
+    Phase.DETECTED: "DETECTED",
     Phase.CUE_TRIGGERED: "CUEING",
     Phase.RECOVERY_MONITORING: "RECOVERING",
     Phase.RECOVERED: "RECOVERED",

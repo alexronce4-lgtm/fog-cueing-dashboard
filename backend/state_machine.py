@@ -13,11 +13,13 @@ from models import PHASE_LABELS, Phase
 TRANSITIONS: dict[Phase, set[Phase]] = {
     Phase.WALKING: {Phase.POSSIBLE_FREEZE, Phase.CUE_TRIGGERED, Phase.WALKING},
     Phase.POSSIBLE_FREEZE: {
+        Phase.DETECTED,
         Phase.CUE_TRIGGERED,
         Phase.WALKING,
         Phase.RECOVERY_MONITORING,
         Phase.POSSIBLE_FREEZE,
     },
+    Phase.DETECTED: {Phase.CUE_TRIGGERED, Phase.WALKING, Phase.DETECTED},
     Phase.CUE_TRIGGERED: {Phase.RECOVERY_MONITORING, Phase.WALKING, Phase.CUE_TRIGGERED},
     Phase.RECOVERY_MONITORING: {
         Phase.RECOVERED,
@@ -33,6 +35,7 @@ DISPLAY_LABELS = PHASE_LABELS
 LOOP_STEP: dict[Phase, str] = {
     Phase.WALKING: "SENSE",
     Phase.POSSIBLE_FREEZE: "DETECT",
+    Phase.DETECTED: "DETECT",
     Phase.CUE_TRIGGERED: "INTERVENE",
     Phase.RECOVERY_MONITORING: "MEASURE RECOVERY",
     Phase.RECOVERED: "MEASURE RECOVERY",
