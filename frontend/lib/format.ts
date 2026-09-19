@@ -15,10 +15,11 @@ export const PHASE_LABEL: Record<Phase, string> = {
   WALKING: "WALKING",
   POSSIBLE_FREEZE: "POSSIBLE FREEZE",
   DETECTED: "DETECTED",
-  CUE_TRIGGERED: "CUEING",
+  CUE_TRIGGERED: "HAPTIC CUE",
   RECOVERY_MONITORING: "RECOVERING",
   RECOVERED: "RECOVERED",
   ANALYZING: "ANALYZING",
+  OUTCOME: "OUTCOME LEARNED",
 };
 
 export const PHASE_CLASS: Record<Phase, string> = {
@@ -30,6 +31,7 @@ export const PHASE_CLASS: Record<Phase, string> = {
   RECOVERY_MONITORING: "phase-recover",
   RECOVERED: "phase-recovered",
   ANALYZING: "phase-analyze",
+  OUTCOME: "phase-outcome",
 };
 
 export const PHASE_COLOR: Record<Phase, string> = {
@@ -41,27 +43,20 @@ export const PHASE_COLOR: Record<Phase, string> = {
   RECOVERY_MONITORING: "#2dd4bf",
   RECOVERED: "#b6ff4a",
   ANALYZING: "#c084fc",
+  OUTCOME: "#7dd3fc",
 };
 
 export const PHASE_CAPTION: Record<Phase, string> = {
-  IDLE: "Press START DEMO to begin simulated walking.",
-  WALKING: "Locomotion nominal. Edge detector watching the gait signal.",
-  POSSIBLE_FREEZE: "Freeze-like gait pattern scored on-device.",
-  DETECTED: "Edge threshold reached. RunPod verification requested.",
-  CUE_TRIGGERED: "Local haptic cue dispatched by the edge loop.",
-  RECOVERY_MONITORING: "Timing the return to baseline cadence.",
-  RECOVERED: "Cadence restored. Episode logged.",
-  ANALYZING: "Grok summarising the evidence.",
+  IDLE: "Press START DEMO to begin.",
+  WALKING: "Gait nominal. On-device detector watching the ankle signal.",
+  POSSIBLE_FREEZE: "Step rhythm breaking up. Freeze-like pattern scored on-device.",
+  DETECTED: "Edge threshold reached. Cloud verification requested.",
+  CUE_TRIGGERED: "Rhythmic haptic cue from the ankle wearable.",
+  RECOVERY_MONITORING: "Timing the return to baseline step rhythm.",
+  RECOVERED: "Step rhythm restored. Episode logged.",
+  ANALYZING: "Comparing this outcome with previous episodes.",
+  OUTCOME: "Outcome logged and used to shape the next experiment.",
 };
 
-/** The 8-beat judge story shown under the current state. */
-export const STORY = [
-  "WALKING",
-  "FREEZE-LIKE",
-  "DETECTED",
-  "HAPTIC CUE",
-  "RECOVERY",
-  "VERIFIED",
-  "ANALYSIS",
-  "NEXT EXPERIMENT",
-] as const;
+/** SENSE → DETECT → CUE → RECOVER → ADAPT */
+export const STORY = ["SENSE", "DETECT", "CUE", "RECOVER", "ADAPT"] as const;

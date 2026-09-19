@@ -6,11 +6,13 @@ This is a **research / assistive-technology prototype**, not a validated medical
 
 **Architecture rule:** Grok and RunPod do **not** drive the vibration motor. The intervention loop is local / edge-first. Cloud models only verify or analyze after (or alongside) events.
 
-Core loop: **SENSE → DETECT → INTERVENE → MEASURE RECOVERY → ANALYZE → ADAPT**
+Core loop: **SENSE → DETECT → CUE → RECOVER → ADAPT**
 
 ```
-WALKING → POSSIBLE FREEZE → DETECTED → CUEING → RECOVERING → RECOVERED → ANALYZING → WALKING
+WALKING → POSSIBLE FREEZE → DETECTED → HAPTIC CUE → RECOVERING → RECOVERED → ANALYZING → OUTCOME LEARNED
 ```
+
+The differentiator is not detection alone: each episode's **recovery time** is measured, logged, and fed back to choose the **next cue experiment**.
 
 ## Quick start
 
@@ -60,30 +62,31 @@ pytest -q
 
 ## Demo mode (judges)
 
-Demo mode is **self-contained in the browser**: the gait simulator, the automatic
+Demo mode is **self-contained in the browser**: the gait generator, the automatic
 freeze → cue → recovery sequence, and the mock RunPod / Grok services all run
 client-side. The dashboard works with the backend offline and never shows an
-error banner — pills read `STREAM SIMULATED · ESP32 DEMO · RUNPOD MOCK · GROK MOCK`.
+error banner. The header badge reads `DEMO MODE · READY`, `REPLAY MODE · LABELED DATA`
+or `LIVE MODE · DEVICE CONNECTED`; technical statuses live in the **Advanced** row.
 
 Three controls (keys **1 · 2 · 3**) in the docked bar:
 
-| Control | What happens |
-|---|---|
-| **1 · START DEMO** | Clears the session, enters **WALKING**, starts the simulated IMU at ~102 BPM, edge low, RunPod idle, cue inactive, timer 0 |
-| **2 · TRIGGER FREEZE-LIKE EVENT** | Runs the whole loop automatically (see timeline below). Disabled while a sequence is running. Works from READY too. |
-| **3 · RESET** | Cancels all timers, clears waveform / events / analysis, returns to **READY** |
+| Control | DEMO | REPLAY |
+|---|---|---|
+| **1** | **START DEMO** — clear session, enter **WALKING**, start realistic gait signal | **NEXT REPLAY SAMPLE** — cycle FoG-STAR events |
+| **2** | **TRIGGER EVENT** — run the whole loop automatically | **REPLAY LABELED EVENT** — play the labeled window; state syncs to its markers |
+| **3** | **RESET** — cancel timers, clear markers / events / analysis, back to **READY** | same |
 
-Automatic timeline after **TRIGGER**:
+Automatic timeline after **TRIGGER EVENT**:
 
 | t | State | On screen |
 |---|---|---|
-| 0 ms | **POSSIBLE FREEZE** | Waveform collapses to a freeze-like trace; edge score ramps to ~82–88% |
-| 500 ms | **DETECTED** | RunPod verification requested (time-boxed, mock fallback) |
-| 1000 ms | **CUEING** | RunPod ~88–94%; haptic cue **ACTIVE**, 95 BPM pulse rings |
-| 2000 ms | **RECOVERING** | Recovery timer running |
-| 3.4–3.8 s | **RECOVERED** | Waveform returns to baseline; timer stops at 1.4–1.8 s; episode E*n* added |
-| +250 ms | **ANALYZING** | Verification result stays visible; Grok analysis (time-boxed, mock fallback) |
-| +1.25 s | **WALKING** | **ADAPTIVE RESULT** shows Observed / Evidence / Next experiment / Confidence |
+| 0 ms | **POSSIBLE FREEZE** | Steps break up into trembling + stalls; detection ramps to ~82–88%; figure's legs collapse to hesitant micro-motion |
+| 500 ms | **DETECTED** | `DETECTION` marker on the chart; verification requested (time-boxed, mock fallback) |
+| 1000 ms | **HAPTIC CUE** | Verification ~88–94%; cue **ACTIVE**, `CUE` marker; pulse rings from the ankle wearable at 95 BPM |
+| 2000 ms | **RECOVERING** | Recovery timer running; step rhythm gradually returns |
+| 3.4–3.8 s | **RECOVERED** | `RECOVERY` marker; **RECOVERY DETECTED · 1.xx s** highlighted; episode E*nn* logged |
+| +1.2 s | **ANALYZING** | Evidence summary across episodes |
+| +2.2 s | **OUTCOME LEARNED** | Observed / Recovery / Evidence / Next experiment / Confidence |
 
 The cue is dispatched from the **edge** score. RunPod verifies alongside and Grok
 analyses afterwards; neither can pulse the motor. With a handful of episodes the
@@ -91,11 +94,81 @@ analysis will not rank cues — it asks for more observations and only proposes 
 next tempo from `allowed_next_cues` (80 / 95 / 102 BPM). Arming it is a local
 operator click.
 
-Secondary detail (raw phase, latency, model version, backend reachability,
-allowed cues) lives in the collapsible **Advanced** panel.
-
 When the backend is reachable, episodes are mirrored to `POST /api/event`
 (fire-and-forget) so `GET /api/events` stays in sync.
+
+## Data sources
+
+Everything that feeds the chart implements one interface (`frontend/lib/datasources/types.ts`):
+
+```
+DataSource  { kind, start(sink), stop() }
+├── DemoSimulatorSource     lib/datasources/demoSimulatorSource.ts   (GaitSim, 25 Hz)
+├── ReplayDatasetSource     lib/datasources/replayDatasetSource.ts   (prepared FoG-STAR windows, 60 Hz)
+└── ESP32StreamSource       lib/datasources/esp32StreamSource.ts     (backend WebSocket, real device)
+```
+
+The engine (`lib/demoEngine.ts`) only sees `IMUSample`s on a common sink; the UI
+does not know which source is active.
+
+### Realistic synthetic gait (`lib/gaitSim.ts`)
+
+Not an oscillator. The signal is a sum of **discrete step pulses** — heel-strike
+spike, loading bump, push-off bump, swing dip — with per-step jitter on interval
+(~3.5%) and amplitude (~11%), slow baseline drift and sensor noise. Freeze-like
+mode replaces steps with hesitant micro-steps, bursty 5–7 Hz trembling and short
+flat stalls; recovery interpolates regularity back over ~1.6 s. Cadence is
+estimated from the generated step intervals.
+
+### Replay of labeled patient IMU data (FoG-STAR)
+
+[FoG-STAR](https://doi.org/10.5281/zenodo.17037669) — 22 people with Parkinson's
+disease, ankle L/R + back + wrist IMUs at 60 Hz (acc in g, gyro in °/s), 101
+expert video-annotated FoG episodes with severity (shuffling / trembling / akinesia),
+activity and task labels.
+
+Prepared windows live in `frontend/public/data/replay/`:
+
+```
+index.json            dataset facts + list of events
+fogstar-001.json      straight walking · trembling
+fogstar-002.json      walking + counting · trembling
+fogstar-turning.json  360° turning · trembling
+fogstar-doorway.json  walking through doorway · akinesia
+```
+
+Each file:
+
+```json
+{
+  "event_id": "fogstar-001", "source": "FoG-STAR", "subject_id": "S09",
+  "task": "straight walking", "label": "freeze_like", "fog_severity": "trembling",
+  "sensor": "ankleL (acc + gyro magnitude)", "sample_rate_hz": 60,
+  "baseline_cadence_bpm": 83, "duration_s": 13.0,
+  "fog_onset_t": 6.0, "fog_offset_t": 9.0,
+  "markers": { "detection_t": 6.4, "cue_t": 7.0, "recovery_t": 9.0 },
+  "markers_source": { "detection": "derived …", "cue": "derived: no cueing in dataset …", "recovery": "dataset: expert-labelled FoG offset" },
+  "samples": [ { "t": 0.0, "acc_mag": 1.02, "gyro_mag": 14.3, "fog": 0 }, … ]
+}
+```
+
+The dataset contains no cueing, so `detection_t` and `cue_t` are **derived**
+(onset + 0.4 s, + 0.6 s) and labelled as such in the file and the Advanced row;
+`recovery_t` is the dataset's own FoG-offset label. The amber band on the chart
+is the labelled FoG span.
+
+**Add more samples:**
+
+```bash
+# download sensor_data.csv from the Zenodo record, then
+python data/prepare_fogstar_replay.py --csv sensor_data.csv --list          # list all 101 episodes
+python data/prepare_fogstar_replay.py --csv sensor_data.csv \
+   --pick 15:1:6:0 --id 15:1:6:0=fogstar-dualtask --title '15:1:6:0=FoG-STAR dual-task event'
+```
+
+Pick keys are `subject:session:task:episode_index`. The script rewrites
+`index.json`; the UI picks it up on refresh. Any other dataset works if you
+emit the same JSON shape.
 
 ## Configure Grok (optional)
 
@@ -173,11 +246,22 @@ backend/          FastAPI, WebSockets, Pydantic
   services/runpod_service.py
   services/grok_service.py
   demo/simulator.py
-frontend/         Next.js + TypeScript + Tailwind (canvas waveform)
-  app/  components/  types/
-  lib/demoEngine.ts   client-side state machine + automatic demo sequence
-  lib/gaitSim.ts      client-side IMU simulator (mirrors backend/demo/simulator.py)
+frontend/         Next.js + TypeScript + Tailwind (canvas waveform, SVG gait figure)
+  app/  types/
+  components/
+    CurrentState.tsx  hero state + GaitFigure.tsx (lower-body silhouette, ankle wearable)
+    GaitSignal.tsx    Waveform.tsx (time-based canvas, markers, labeled FoG band) + data strip
+    ResponsePanel.tsx detection · verification · haptic cue · recovery (+ last 3 episodes)
+    OutcomePanel.tsx  OUTCOME LEARNED (adaptive analysis, reasoning: Grok)
+    ModeBadge.tsx     DEMO / REPLAY / LIVE switch + compact status badge
+    DemoControls.tsx  3-button transport
+    AdvancedPanel.tsx raw sensor, event JSON, models, connections, full analysis
+  lib/demoEngine.ts   state machine, automatic sequence, replay sync, source switching
+  lib/gaitSim.ts      step-pulse gait generator (freeze-like tremor + stalls, recovery)
+  lib/datasources/    DataSource interface + Demo / Replay / ESP32 implementations
   lib/services.ts     RunPod / Grok abstractions, time-boxed with mock fallbacks
+  public/data/replay/ prepared FoG-STAR windows + index.json
+data/prepare_fogstar_replay.py   CSV → replay JSON pipeline
 ```
 
 CORS allows `FRONTEND_ORIGIN` (default `http://localhost:3000`).

@@ -146,7 +146,10 @@ export function mockGrok(events: EventRecord[], allowed: CueParams[], baseline: 
       ? `Compare ${best.bpm} BPM vs ${unused[0].bpm} BPM.`
       : `Collect more observations across ${allowed.map((c) => c.bpm).join(" / ")} BPM before ranking.`;
   }
-  const confidence = n >= 8 && medians.length >= 2 ? "Early trend only — still a research signal, not a clinical finding." : "Insufficient data to rank cues reliably.";
+  const confidence =
+    n >= 8 && medians.length >= 2
+      ? "Early trend only — an observation, not a clinical finding."
+      : "More observations required.";
 
   const recommended: CueParams | null = unused[0] ?? leastSampled ?? null;
 

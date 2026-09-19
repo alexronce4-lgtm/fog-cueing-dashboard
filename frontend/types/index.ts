@@ -6,7 +6,8 @@ export type Phase =
   | "CUE_TRIGGERED"
   | "RECOVERY_MONITORING"
   | "RECOVERED"
-  | "ANALYZING";
+  | "ANALYZING"
+  | "OUTCOME";
 
 export type ClassificationLabel = "walking" | "freeze_like" | "unknown";
 
@@ -86,16 +87,29 @@ export interface GrokAnalysis {
 }
 
 export type ServiceMode = "MOCK" | "ONLINE";
-export type SensorMode = "DEMO" | "LIVE";
+export type SensorMode = "DEMO" | "LIVE" | "REPLAY";
 
 export interface Connections {
-  stream: "SIMULATED" | "LIVE";
-  esp32: SensorMode;
+  esp32: "CONNECTED" | "DISCONNECTED";
+  socket: "connecting" | "open" | "closed";
+  socketAttempts: number;
+  lastMessageAt: number | null;
   runpod: ServiceMode;
   grok: ServiceMode;
+  backendReachable: boolean;
+}
+
+export interface ReplayStatus {
+  index: import("@/lib/datasources/types").ReplayIndex | null;
+  selected: number;
+  loaded: import("@/lib/datasources/types").ReplayEvent | null;
+  playing: boolean;
+  finished: boolean;
+  loadError: boolean;
 }
 
 export interface DemoState {
+  source: SensorMode;
   phase: Phase;
   running: boolean;
   storyStep: number;
@@ -108,6 +122,7 @@ export interface DemoState {
   analysis: GrokAnalysis | null;
   events: EventRecord[];
   lastEpisodeId: string | null;
+  markers: import("@/lib/datasources/types").SignalMarker[];
+  replay: ReplayStatus;
   connections: Connections;
-  backendReachable: boolean;
 }
